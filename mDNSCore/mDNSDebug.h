@@ -239,6 +239,7 @@ extern void freeL(const char *msg, void *x);
         mDNSu8 *_rdataBuffer = NULL;                                                                                \
         mDNSu8 *_rdataBufferHeap = NULL;                                                                            \
         mDNSu16 _rdataBufferLen;                                                                                    \
+        bool    _isAllocated = false;                                                                               \
         if ((RR_PTR)->rdlength <= sizeof(mDNSStorage.RDataBuffer))                                                  \
         {                                                                                                           \
             _rdataBuffer = mDNSStorage.RDataBuffer;                                                                 \
@@ -249,6 +250,7 @@ extern void freeL(const char *msg, void *x);
             _rdataBufferHeap = mDNSPlatformMemAllocate((RR_PTR)->rdlength);                                         \
             _rdataBuffer = _rdataBufferHeap;                                                                        \
             _rdataBufferLen = (RR_PTR)->rdlength;                                                                   \
+            _isAllocated = true;                                                                                    \
         }                                                                                                           \
         if ((RR_PTR)->rdlength == 0)                                                                                \
         {                                                                                                           \
@@ -260,6 +262,7 @@ extern void freeL(const char *msg, void *x);
             MDNS_CORE_LOG_RDATA_WITH_BUFFER(CATEGORY, LEVEL, RR_PTR, _rdataBuffer, _rdataBufferLen, FORMAT,         \
                 ##__VA_ARGS__);                                                                                     \
         }                                                                                                           \
+        if(_isAllocated)                                                                                            \
         mDNSPlatformMemFree(_rdataBufferHeap);                                                                      \
     }                                                                                                               \
     while(0)
