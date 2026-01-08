@@ -69,6 +69,7 @@ extern BOOL IsSystemServiceDisabled();
 static int g_initWinsock = 0;
     #define LOG_WARNING kDebugLevelWarning
     #define LOG_INFO kDebugLevelInfo
+    #define LOG_ERR kDebugLevelError
 static void syslog( int priority, const char * message, ...)
 {
     va_list args;

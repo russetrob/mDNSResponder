@@ -124,6 +124,7 @@
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <ShowProgress>LinkVerbose</ShowProgress>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>mDNSNetMonitor.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>

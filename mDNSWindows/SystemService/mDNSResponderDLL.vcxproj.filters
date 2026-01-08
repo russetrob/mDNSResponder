@@ -98,9 +98,6 @@
     <ClCompile Include="..\..\mDNSShared\GenLinkedList.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\mDNSMacOSX\LegacyNATTraversal.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\mDNSCore\mDNS.c">
       <Filter>Source Files</Filter>
     </ClCompile>
