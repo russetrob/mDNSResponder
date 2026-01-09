@@ -129,11 +129,15 @@ Successful build of all projects in
   * Build successful for all projects of mDNSResponder.sln
 * DONE Run in container inside vs2022 to see debug messages.                
 * DONE/REVIEW: Fix centennial mismatch.
-  * Working with 
+  * Working with `mDNSResponder -server` and dns-sd client.
+  * May just need conditional test on the allocated object being null.
 * DONE Try disabling run-as-administrator in manifest
   * For this, we want to run command as `mDNSResponder.exe -server` from VC++
   * Then we run non-centennial dns-sd outside, to test.
   * Needed changes in the VC++ linker setting (UAC excution level) **and** in the manifest file
+* Try moving to named pipe based comms.
+  * Change macros to use named pipe.
+  * Change path to temp path of 
 ## VM issues:
 * Use Bridged network service.
   * If use NAT, can't see any MDNS devices on local net!
@@ -148,7 +152,7 @@ Successful build of all projects in
 ## Mofications to remove service:
 * How to run without service:
     * Hints that can use embedded service.... but looking at app....
-    * Down't want this want to strip-down the MDNS service so
+    * Don't want this want to strip-down the MDNS service so
         * Does monitor windows/OS for key events.
             * see: Service.c:::SetupNotifications()
             
@@ -161,12 +165,12 @@ Successful build of all projects in
                         * Auto-register domains.
                 * and:
                     udsserver_init()
-                        * we definately don't want MOST of this.
-                        * we might want the auto domain regsitration stuff.
+                        * we definitely don't want MOST of this.
+                        * we might want the auto domain registration stuff.
                         
             * Should check for special handling see:
             
-                handle_client_request()
+                * handle_client_request()
 Where is dnsd_clinetshim.c referenced from embedded? 
     Here:
         mDNSEmbeddedAPI.h referenced?
@@ -224,10 +228,18 @@ Maybe we run with sockets instead?
         * Don't advertise anything.
             See:  ServiceSpecificInitialize()
         * Don't read registry.
-            See:  kServiceParametersNode and relatedf.
+            See:  kServiceParametersNode and related.
+            Might be easiest to read dunny nodes?
+                * Set a dummy registry entry that's unlikely to be filled.
         * Don't do unicast.
             set the UNICAST_DISABLED in compiler options.
-            See also: CanReceiveUnicast()
+            See also: CanReceiveUnicast() if we work with that, can make unicast an option:
+                * as returns bool, we can just set to false.
+                * Client can start mDNSResponder with --multicast-only to force-disable unicast.
+        * In summary end up with commend line options:
+            --no-registry
+            --mutlicast-only
+            --no-advertise
 
     https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
     AF_LOCAL is supported.
