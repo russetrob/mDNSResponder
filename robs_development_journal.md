@@ -46,23 +46,26 @@ Successful build of all projects in
         * Library to link with to access DLL.
     * dnssd
         * dnsd.dll
-        * This is the client-side implementaton of the bojour API.
+        * This is the client-side implementation of the bojour API.
+        * Connects to mDnsResponder via localhost port 5354
     * dns-sd
         * Command line tool
+        * Depends on dnssd.dll for access to API.
     * DLLX
         * Appears to be a COM interface to the dnssd library
     * mDnsResponder
-        * Sevice that provide
-     * mDNSNetModitor
-        Command line tool that monitors for DNS SD messages.
-        * Is an example of using the embedded API.
-        * But overwrites some of the enbedded API ops:
-            * Dispatch to the embedded api mesage handler doesn't happen, I's kept for it's own use.
+        * Service that provides mdns to clients.
+        * On windows connects by port 5354 on localhost.
+     * mDNSNetMonitor
+        * Command line tool that monitors for DNS SD messages.
+          * Is an example of using the embedded API.
+          * But overwrites some of the embedded API ops:
+            * Dispatch to the embedded api message handler doesn't happen, I's kept for it's own use.
     * mdnsNSP
         Provides domian name resolution to windos for *.local domain.
-        Does so by registerting as winsock namespace provider.
+        Does so by registering as winsock namespace provider.
     * NSPtool.
-        Resiters the mdnsNSP with winsock.
+        Registers the mdnsNSP with winsock.
     
 * Unknown/Irrelevant in mDNSResponder solution:
     ExplorerPlugin
@@ -83,11 +86,11 @@ Successful build of all projects in
     * mdnsresponder runs with errors.
     *dns-sd runs with errors.
     
-    * mdnsresponder runs without errors if started with "-server" oprion.
+    * mdnsresponder runs without errors if started with "-server" option.
     * dns-sd can't find server.
         Maybe try registering service?
         Also logs on wind
-    * more sucess:
+    * more success:
         In admin command prompt:
             C:\Windows\System32>C:\sw_devel_rob\mDNSResponder.exe -install
             installed service
@@ -111,19 +114,26 @@ Successful build of all projects in
 ## Next steps--done:
 * Run locally, and found interesting things...
 * Centennial mismatch.
-  * I think centennial edittion was supposed for mandate UwpAppps.
-  * Reistricts ports, so opens arbirary port, then saves loc to env var.
-  * The mismatchs:
+  * I think centennial edition was supposed for mandate UwpAppps.
+  * Restricts ports, so opens arbitrary port, then saves loc to env var.
+  * The mismatches:
         dnssd  project defines  WIN32_CENTENNIAL
         mdnsResponder does NOT define WIN32_CENTENNIAL
         dns-sd project does not define WIN32_CENTENNIAL
   * 
 ## Next steps:
-* Put this doc into the repo, alongside redame.md  call it RobDevJournal.md
-* Migrate repo to be based of my fork.
-* Run in container inside vs2022 to see debug messages.                
-* Fix centennial mismatch.
-* Try disabling run-as-administrator in manifest
+* DONE Put this doc into the repo, alongside redame.md  call it RobDevJournal.md
+* DONE Migrate repo to be based of my fork.
+* Write up issues found migrating repo.
+* DONE Build in container:
+  * Build successful for all projects of mDNSResponder.sln
+* DONE Run in container inside vs2022 to see debug messages.                
+* DONE/REVIEW: Fix centennial mismatch.
+  * Working with 
+* DONE Try disabling run-as-administrator in manifest
+  * For this, we want to run command as `mDNSResponder.exe -server` from VC++
+  * Then we run non-centennial dns-sd outside, to test.
+  * Needed changes in the VC++ linker setting (UAC excution level) **and** in the manifest file
 ## VM issues:
 * Use Bridged network service.
   * If use NAT, can't see any MDNS devices on local net!
@@ -210,6 +220,14 @@ Maybe we run with sockets instead?
     Just change a macro.... see  udsserver_init()  and follow down till FDs are set...
         there's a macro to select sockets or named pipes.
         If we use named pipe can work well.
+    In addition:
+        * Don't advertise anything.
+            See:  ServiceSpecificInitialize()
+        * Don't read registry.
+            See:  kServiceParametersNode and relatedf.
+        * Don't do unicast.
+            set the UNICAST_DISABLED in compiler options.
+            See also: CanReceiveUnicast()
 
     https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
     AF_LOCAL is supported.
@@ -242,7 +260,7 @@ Process events on stdin:
 * in the following:
   * `>` = parent to child.
   * `<` = child to parent
-  * << ....> = some event out-of-band from stdio for parent-child comms.
+  * << ....> = some event out-of-band vs. stdio for parent-child comms.
 ```
     > NewNamedPipe
     < NamedPipe = <Full path to named pipe> // we use globally unique name for named pipe
@@ -252,4 +270,196 @@ Process events on stdin:
         This is not suffcient for all cases, but shouldn't be relevant to us.
         Registing the child process as a job process should be sufficient for our needs.
 ```        
-        
+Open child process without window:
+    https://stackoverflow.com/questions/7063859/c-popen-command-without-console
+    
+### Issues seen when running mDNSResponder without admin.
+* No issues found so far reqiring admin access.
+* Also found a free-null reference error... fixed.
+```
+[mDNSWin32] platform init
+[mDNSWin32] Unicast UDP responses *not allowed*
+[mDNSWin32] HIHardware: Windows
+[mDNSWin32] setting up socket 0.0.0.0:52428
+[mDNSWin32] setting up socket [0000:0000:0000:0000:0000:0000:0000:0000%0]:52428
+
+[ASSERT] error:  10022 (An invalid argument was supplied.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 3079, "SetupSocket"
+
+[mDNSWin32] platform init done (err=0 no error)
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 1810, "SetSearchDomainList"
+
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 2029, "SetDomainFromDHCP"
+
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+Running service directly
+[mDNSWin32] setting up interface list
+[mDNSWin32] tearing down interface list
+[mDNSWin32] tearing down interface list done
+[mDNSWin32] nice name "DESKTOP-C340V5O"
+[mDNSWin32] netbios name "DESKTOP-C340V5O"
+[mDNSWin32] netbios domain/workgroup "WORKGROUP"
+[mDNSWin32] host name "DESKTOP-C340V5O"
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00000012) 192.168.1.21:0
+[mDNSWin32] setting up interface
+[mDNSWin32] setting up socket 192.168.1.21:0
+[mDNSWin32] Registered interface 192.168.1.21:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00989692) [2001:08B0:FFBF:0001:0000:0000:0000:0797%0]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] Registered interface [2001:08B0:FFBF:0001:0000:0000:0000:0797%0]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00989692) [FE80:0000:0000:0000:93D6:B7BA:DE32:DB5D%18]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] Registered interface [FE80:0000:0000:0000:93D6:B7BA:DE32:DB5D%18]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {91D13558-29F7-11EB-ABA3-806E6F6E6963} (0x00989681) [0000:0000:0000:0000:0000:0000:0000:0001%0]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] setting up socket [0000:0000:0000:0000:0000:0000:0000:0001%0]:0
+
+[ASSERT] error:  10022 (An invalid argument was supplied.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 3079, "SetupSocket"
+
+[mDNSWin32] Registered interface [0000:0000:0000:0000:0000:0000:0000:0001%0]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] setting up interface list done (err=0 no error)
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 1810, "SetSearchDomainList"
+
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 2029, "SetDomainFromDHCP"
+
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+[mDNSWin32] session closed
+[mDNSWin32] session closed
+[mDNSWin32] session closed
+```
+* With administrator prompt:
+  * Only issues are the inMem meaages, as we haven't applied this patch to the other branch.
+```
+[mDNSWin32] platform init
+[mDNSWin32] Unicast UDP responses *not allowed*
+[mDNSWin32] HIHardware: Windows
+[mDNSWin32] setting up socket 0.0.0.0:52428
+[mDNSWin32] setting up socket [0000:0000:0000:0000:0000:0000:0000:0000%0]:52428
+
+[ASSERT] error:  10022 (An invalid argument was supplied.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 3077, "SetupSocket"
+
+[mDNSWin32] platform init done (err=0 no error)
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 1809, "SetSearchDomainList"
+
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 2027, "SetDomainFromDHCP"
+
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+
+[ASSERT] assert: "inMem"
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 754, "mDNSPlatformMemFree"
+
+
+[ASSERT] assert: "inMem"
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 754, "mDNSPlatformMemFree"
+
+Running service directly
+[mDNSWin32] setting up interface list
+[mDNSWin32] tearing down interface list
+[mDNSWin32] tearing down interface list done
+[mDNSWin32] nice name "DESKTOP-C340V5O"
+[mDNSWin32] netbios name "DESKTOP-C340V5O"
+[mDNSWin32] netbios domain/workgroup "WORKGROUP"
+[mDNSWin32] host name "DESKTOP-C340V5O"
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00000012) 192.168.1.21:0
+[mDNSWin32] setting up interface
+[mDNSWin32] setting up socket 192.168.1.21:0
+[mDNSWin32] Registered interface 192.168.1.21:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00989692) [2001:08B0:FFBF:0001:0000:0000:0000:0797%0]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] Registered interface [2001:08B0:FFBF:0001:0000:0000:0000:0797%0]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {EC68D501-E938-4280-A191-CAFF5B2509B8} (0x00989692) [FE80:0000:0000:0000:93D6:B7BA:DE32:DB5D%18]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] Registered interface [FE80:0000:0000:0000:93D6:B7BA:DE32:DB5D%18]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] Interface   {91D13558-29F7-11EB-ABA3-806E6F6E6963} (0x00989681) [0000:0000:0000:0000:0000:0000:0000:0001%0]:0
+[mDNSWin32] setting up interface
+[mDNSWin32] setting up socket [0000:0000:0000:0000:0000:0000:0000:0001%0]:0
+
+[ASSERT] error:  10022 (An invalid argument was supplied.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 3077, "SetupSocket"
+
+[mDNSWin32] Registered interface [0000:0000:0000:0000:0000:0000:0000:0001%0]:0 with mDNS
+[mDNSWin32] setting up interface done (err=0 no error)
+[mDNSWin32] setting up interface list done (err=0 no error)
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 1809, "SetSearchDomainList"
+
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 2027, "SetDomainFromDHCP"
+
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+[mDNSWin32] TCP/IP config has changed
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 1809, "SetSearchDomainList"
+
+
+[ASSERT] error:  2 (The system cannot find the file specified.)
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 2027, "SetDomainFromDHCP"
+
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff::
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.255.255.0
+[mDNSWin32] getifaddrs_ipv6: IPv6 mask = ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+[mDNSWin32] getifaddrs_ipv6: IPv4 mask = 255.0.0.0
+
+[ASSERT] assert: "inMem"
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 754, "mDNSPlatformMemFree"
+
+
+[ASSERT] assert: "inMem"
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 754, "mDNSPlatformMemFree"
+
+
+[ASSERT] assert: "inMem"
+[ASSERT] where:  "C:\sw_devel_rob\mDNSResponder\mDNSWindows\mDNSWin32.c", line 754, "mDNSPlatformMemFree"
+
+```
